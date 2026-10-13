@@ -1262,11 +1262,6 @@ elOvBtn.addEventListener('click', function(e){
 
 document.getElementById('stage').addEventListener('click', function(){
   initAudio();
-  if (G.state === 'play') launch();
-});
-
-elOverlay.addEventListener('click', function(){
-  if (G.state === 'play') launch();
 });
 
 /* ---------- 输入 ---------- */
@@ -1282,6 +1277,11 @@ cvs.addEventListener('pointermove', function(e){
 cvs.addEventListener('pointerdown', function(e){
   initAudio();
   paddle.x = clamp(toLocalX(e.clientX), paddle.w/2, W - paddle.w/2);
+  // 抓住指针，手指滑出画布也能继续拖动
+  if (cvs.setPointerCapture) { try { cvs.setPointerCapture(e.pointerId); } catch (err) {} }
+});
+// 松手才发球：按下 / 拖动只用来把挡板挪到想要的位置
+cvs.addEventListener('pointerup', function(e){
   if (G.state === 'play') launch();
 });
 
@@ -1376,7 +1376,7 @@ function updateBuffsThrottle(t){
 buildLevel(0);
 G.state = 'menu';
 showOverlay('打砖块 · 闯关',
-  '十四关 · 十一种道具<br>发光的砖块会掉道具，优先打<br>后期关卡各有花样：铁笼 / 摆动 / 下压 / 爆炸砖<br>鼠标拖动 / 触屏 / ←→ 移动挡板<br>空格或点击发射 · P 暂停<br>最高分 ' + G.best,
+  '十四关 · 十一种道具<br>发光的砖块会掉道具，优先打<br>后期关卡各有花样：铁笼 / 摆动 / 下压 / 爆炸砖<br>鼠标拖动 / 触屏 / ←→ 移动挡板<br>按住拖动定位，松手发球 · 空格亦可发射 · P 暂停<br>最高分 ' + G.best,
   '开始游戏');
 requestAnimationFrame(loop);
 
