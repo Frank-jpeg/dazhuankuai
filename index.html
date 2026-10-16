@@ -149,10 +149,9 @@ var COLORS = {
   'B': ['#ffc247', '#ff4a00'],
   'H': ['#d8dde4', '#8b939c'],
   'S': ['#ffe27a', '#e8a005'],
-  'X': ['#9aa1a9', '#4a5057'],
-  'G': ['#2f6280', '#153346']
+  'X': ['#9aa1a9', '#4a5057']
 };
-var BRICK_HP = { '1':1, '2':1, '3':1, '4':1, '5':1, 'B':1, 'H':2, 'S':3, 'X':999, 'G':999 };
+var BRICK_HP = { '1':1, '2':1, '3':1, '4':1, '5':1, 'B':1, 'H':2, 'S':3, 'X':999 };
 
 /* ---------- 关卡：14 关，11 列，由疏到密递进；后期关卡各配一套机制 ---------- */
 var LEVELS = [
@@ -203,15 +202,16 @@ var LEVELS = [
     "111.111.111",
     "11111111111",
     "11.111.1111" ],
-  // 8 铁笼·宽门
+  // 8 铁笼·单口
   [ "XXXXXXXXXXX",
     "X111111111X",
     "X222222222X",
     "X333333333X",
     "X444444444X",
     "X555555555X",
-    "X...XXX...X",
-    "XGGGXXXGGGX" ],
+    "X.........X",
+    "X.........X",
+    "XX..XXXXXXX" ],
   // 9 十字
   [ "....333....",
     "....3H3....",
@@ -260,8 +260,9 @@ var LEVELS = [
     "X555555555X",
     "X1B1B1B1B1X",
     "X222222222X",
-    "X..33333..X",
-    "XGGXXXXXGGX" ],
+    "X.........X",
+    "X.........X",
+    "XXXXXX..XXX" ],
 ];
 
 var LEVEL_META = [
@@ -272,13 +273,13 @@ var LEVEL_META = [
   {},                                                // 5 心形
   { move:'swing', amp:55 },                          // 6 摆动砖墙（左右滑动）
   {},                                                // 7 蜂巢
-  { gapCols:[[1,3],[7,3]] },                         // 8 铁笼·双门（单向阀：进得去出不来）
+  { gapCols:[[2,2]] },                               // 8 铁笼·单口（一个口，能进能出）
   {},                                                // 9 十字
   {},                                                // 10 菱形波纹
   {},                                                // 11 沙漏
   { move:'descend', dropSpeed:0.16, maxDrop:340 },   // 12 下压砖墙
   {},                                                // 13 爆炸砖
-  { gapCols:[[1,2],[8,2]] }                          // 14 终极铁笼（单向阀窄门 + 内部爆炸砖）
+  { gapCols:[[6,2]] }                                // 14 终极铁笼（单口窄门 + 内部爆炸砖）
 ];
 
 /* ---------- 道具 ---------- */
@@ -418,7 +419,7 @@ function buildLevel(n){
   // 数量保底：至少 4 块、最多 12 块，按砖数 3% 比例取整，杜绝空道具关卡
   var candidates = [];
   for (var i2 = 0; i2 < bricks.length; i2++){
-    if (bricks[i2].type !== 'X' && bricks[i2].type !== 'G') candidates.push(bricks[i2]);
+    if (bricks[i2].type !== 'X') candidates.push(bricks[i2]);
   }
   var count = Math.max(5, Math.round(candidates.length * 0.11));
   count = Math.min(count, candidates.length, 18);
@@ -444,7 +445,7 @@ function buildLevel(n){
   syncHud();
 }
 
-/* 关卡机制：摆动 / 下压 / 铁笼入口提示 */
+/* 关卡机制：摆动 / 下压 / 铁笼口子提示 */
 function setupWall(n){
   var meta = LEVEL_META[n] || {};
   wallMove = meta.move || null;
@@ -552,25 +553,9 @@ function collideBall(b){
   // 砖块
   var now = performance.now();
 
-  // 单向门优先判定：门砖和两侧坚砖会同时接触球，
-  // 若让坚砖先命中就会 break 掉砖块循环、门砖漏检 —— 球就从笼里漏出去了
-  for (var gi = 0; gi < bricks.length; gi++){
-    var gb = bricks[gi];
-    if (gb.type !== 'G' || gb.hp <= 0) continue;
-    if (b.x + b.r < gb.x || b.x - b.r > gb.x + gb.w) continue;
-    if (b.y + b.r < gb.y || b.y - b.r > gb.y + gb.h) continue;
-    if (b.dy < 0) continue;              // 往上穿行：直接放行
-    // 往下回落：一律强制推回笼内（无论球压在门砖哪个位置）
-    b.y = gb.y - b.r;
-    b.dy = -Math.abs(b.dy);
-    hitBrick(gb, 1);
-    return;                              // 一次只撞一块
-  }
-
   for (var i = 0; i < bricks.length; i++){
     var br = bricks[i];
     if (br.hp <= 0) continue;
-    if (br.type === 'G') continue;       // 门已在前一轮处理
     if (b.x + b.r < br.x || b.x - b.r > br.x + br.w) continue;
     if (b.y + b.r < br.y || b.y - b.r > br.y + br.h) continue;
 
@@ -609,7 +594,7 @@ function collideBall(b){
 }
 
 function hitBrick(br, dmg, noBomb){
-  if (br.type === 'X' || br.type === 'G'){
+  if (br.type === 'X'){
     br.flash = 1;
     beep(180, 0.05, 'square', 0.03);
     return;
@@ -896,7 +881,7 @@ function update(dt){
   // 过关判定
   var alive = 0;
   for (var z = 0; z < bricks.length; z++){
-    if (bricks[z].hp > 0 && bricks[z].type !== 'X' && bricks[z].type !== 'G') alive++;
+    if (bricks[z].hp > 0 && bricks[z].type !== 'X') alive++;
   }
   if (alive === 0){
     G.state = 'clear';
@@ -1007,30 +992,6 @@ function draw(){
       ctx.lineWidth = 1;
       rr(br.x + 2, br.y + 2, br.w - 4, br.h - 4, 1.5);
       ctx.stroke();
-    }
-
-    // 单向门：虚线框 + 向上箭头，一眼看出只能进不能出
-    if (br.type === 'G'){
-      ctx.save();
-      ctx.strokeStyle = 'rgba(126,224,255,.5)';
-      ctx.lineWidth = 1.2;
-      ctx.setLineDash([4, 3]);
-      rr(br.x + 1.5, br.y + 1.5, br.w - 3, br.h - 3, 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      var gcx = br.x + br.w / 2, gcy = br.y + br.h / 2;
-      ctx.fillStyle = 'rgba(178,238,255,.9)';
-      ctx.beginPath();
-      ctx.moveTo(gcx, gcy - 5.5);
-      ctx.lineTo(gcx + 4.2, gcy + 0.6);
-      ctx.lineTo(gcx + 1.7, gcy + 0.6);
-      ctx.lineTo(gcx + 1.7, gcy + 5.5);
-      ctx.lineTo(gcx - 1.7, gcy + 5.5);
-      ctx.lineTo(gcx - 1.7, gcy + 0.6);
-      ctx.lineTo(gcx - 4.2, gcy + 0.6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
     }
 
     // 爆炸砖：橙色警戒斜纹，一眼认出会炸
