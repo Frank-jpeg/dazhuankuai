@@ -7,13 +7,13 @@
 <style>
   :root{
     /* 画布宽 = min(96%视口宽, (可用高度)/1.5)，可用高度扣掉 HUD+buffs 约 92px */
-    --w: min(96vw, calc((100vh - 92px) / 1.5));
+    --w: min(96vw, calc((100vh - 104px) / 1.5));
     --bg:#eef1f6; --panel:#ffffff; --text:#1c1c1e; --sub:#8e8e93;
     --line:#e3e6ec; --accent:#007aff; --shadow:0 6px 24px rgba(0,0,0,.08);
   }
   /* 手机浏览器地址栏会吃掉视口高度，dvh 更准（支持的浏览器覆盖上面那条） */
   @supports (height: 100dvh){
-    :root{ --w: min(96vw, calc((100dvh - 92px) / 1.5)); }
+    :root{ --w: min(96vw, calc((100dvh - 104px) / 1.5)); }
   }
   [data-theme="dark"]{
     --bg:#000000; --panel:#1c1c1e; --text:#f2f2f7; --sub:#8e8e93;
@@ -58,18 +58,31 @@
     -webkit-backdrop-filter:blur(8px); color:#fff;
   }
   #overlay.show{display:flex}
-  #ovTitle{font-size:26px; font-weight:700; letter-spacing:1px}
+  #ovTitle{
+    font-size:30px; font-weight:800; letter-spacing:2px;
+    background:linear-gradient(180deg,#ffffff,#9fc1f8);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  #ovRule{width:46px; height:3px; border-radius:2px;
+    background:linear-gradient(90deg,transparent,#0a84ff,transparent)}
   #ovSub{font-size:13px; line-height:1.7; color:rgba(255,255,255,.78); max-width:300px}
   #ovBtn{
-    margin-top:6px; padding:11px 30px; border-radius:999px; border:none;
-    background:#0a84ff; color:#fff; font-size:15px; font-weight:600; cursor:pointer;
-    box-shadow:0 4px 16px rgba(10,132,255,.45);
+    margin-top:8px; padding:12px 34px; border-radius:999px; border:none;
+    background:linear-gradient(180deg,#34a1ff,#0a84ff); color:#fff;
+    font-size:15px; font-weight:700; letter-spacing:1px; cursor:pointer;
+    box-shadow:0 6px 20px rgba(10,132,255,.5), inset 0 1px 0 rgba(255,255,255,.35);
+    transition:transform .12s, box-shadow .12s;
   }
+  #ovBtn:hover{transform:translateY(-1px)}
   #ovBtn:active{transform:scale(.95)}
   #buffs{
     width:var(--w); height:26px; display:flex; gap:6px; align-items:center;
-    overflow:hidden;
+    justify-content:center; overflow:hidden;
   }
+  #prog{width:var(--w); display:flex; gap:3px; height:4px}
+  #prog i{flex:1; border-radius:2px; background:var(--line); transition:background .3s}
+  #prog i.done{background:var(--accent)}
+  #prog i.cur{background:var(--text)}
   .pill{
     font-size:11px; padding:3px 9px; border-radius:999px;
     background:var(--panel); border:1px solid var(--line); color:var(--sub);
@@ -88,10 +101,12 @@
     <button class="hbtn" id="btnSound" title="音效">🔊</button>
     <button class="hbtn" id="btnTheme" title="主题">🌙</button>
   </div>
+  <div id="prog"></div>
   <div id="stage">
     <canvas id="cv"></canvas>
     <div id="overlay">
       <div id="ovTitle"></div>
+      <div id="ovRule"></div>
       <div id="ovSub"></div>
       <button id="ovBtn"></button>
     </div>
@@ -127,6 +142,7 @@ var elLevel = document.getElementById('hLevel');
 var elScore = document.getElementById('hScore');
 var elLives = document.getElementById('hLives');
 var elBuffs = document.getElementById('buffs');
+var elProg = document.getElementById('prog');
 var elOverlay = document.getElementById('overlay');
 var elOvTitle = document.getElementById('ovTitle');
 var elOvSub = document.getElementById('ovSub');
@@ -155,10 +171,10 @@ var BRICK_HP = { '1':1, '2':1, '3':1, '4':1, '5':1, 'B':1, 'H':2, 'S':3, 'X':999
 
 /* ---------- 关卡：14 关，11 列，由疏到密递进；后期关卡各配一套机制 ---------- */
 var LEVELS = [
-  // 1 满铺
-  [ "11111111111",
+  // 1 热身波浪（疏密相间，好上手）
+  [ "1.1.1.1.1.1",
     "22222222222",
-    "33333333333",
+    "3.3.3.3.3.3",
     "44444444444" ],
   // 2 棋盘
   [ "1.1.1.1.1.1",
@@ -173,12 +189,12 @@ var LEVELS = [
     "..3333333..",
     ".333333333.",
     "33333333333" ],
-  // 4 挖洞初阶
-  [ "11111111111",
-    "1.1111111.1",
-    "22222222222",
-    "2.2222222.2",
-    "33333333333" ],
+  // 4 竖井回廊（球能钻进缝里从内部打）
+  [ "1.2.3.4.5.1",
+    "1.2.3.4.5.1",
+    "1.2.3.4.5.1",
+    "1.2.3.4.5.1",
+    "1.2.3.4.5.1" ],
   // 5 心形
   [ "..44...44..",
     ".4444.4444.",
@@ -212,12 +228,14 @@ var LEVELS = [
     "X.........X",
     "X.........X",
     "XX..XXXXXXX" ],
-  // 9 十字
-  [ "....333....",
-    "....3H3....",
-    "3333H1H3333",
-    "....3H3....",
-    "....333...." ],
+  // 9 钻石堡垒（硬砖做骨架）
+  [ ".....H.....",
+    "....111....",
+    "..H.222.H..",
+    "..112H211..",
+    "..H.222.H..",
+    "....111....",
+    ".....H....." ],
   // 10 菱形波纹
   [ "11111111111",
     ".2.2.2.2.2.",
@@ -266,20 +284,20 @@ var LEVELS = [
 ];
 
 var LEVEL_META = [
-  {},                                                // 1 满铺
-  {},                                                // 2 棋盘
-  {},                                                // 3 金字塔
-  {},                                                // 4 挖洞初阶
-  {},                                                // 5 心形
-  { move:'swing', amp:55 },                          // 6 摆动砖墙（左右滑动）
-  {},                                                // 7 蜂巢
-  { gapCols:[[2,2]] },                               // 8 铁笼·单口（一个口，能进能出）
-  {},                                                // 9 十字
-  {},                                                // 10 菱形波纹
-  {},                                                // 11 沙漏
-  { move:'descend', dropSpeed:0.16, maxDrop:340 },   // 12 下压砖墙
-  {},                                                // 13 爆炸砖
-  { gapCols:[[6,2]] }                                // 14 终极铁笼（单口窄门 + 内部爆炸砖）
+  { name:'热身波浪' },                               // 1
+  { name:'棋盘' },                                   // 2
+  { name:'金字塔' },                                 // 3
+  { name:'竖井回廊' },                               // 4
+  { name:'心形' },                                   // 5
+  { name:'摆动砖墙', move:'swing', amp:55 },         // 6 左右滑动
+  { name:'蜂巢' },                                   // 7
+  { name:'铁笼', gapCols:[[2,2]] },                  // 8 单口，能进能出
+  { name:'钻石堡垒' },                               // 9
+  { name:'菱形波纹' },                               // 10
+  { name:'沙漏' },                                   // 11
+  { name:'下压砖墙', move:'descend', dropSpeed:0.16, maxDrop:340 },  // 12
+  { name:'爆炸阵' },                                 // 13
+  { name:'终极铁笼', gapCols:[[6,2]] }               // 14 单口窄门 + 内部爆炸砖
 ];
 
 /* ---------- 道具 ---------- */
@@ -308,7 +326,8 @@ var G = {
   pierceT: 0,
   bombT: 0,
   clearTimer: 0,
-  best: 0
+  best: 0,
+  banner: null
 };
 
 var TWIN_OFF = 58;   // 双挡板浮在主挡板上方的高度
@@ -325,6 +344,11 @@ var drops = [];
 var bullets = [];
 var particles = [];
 var floats = [];
+var stars = [];
+for (var si = 0; si < 70; si++){
+  stars.push({ x: Math.random() * W, y: Math.random() * H,
+               r: 0.5 + Math.random() * 1.1, ph: Math.random() * 6.28 });
+}
 var keys = { left:false, right:false };
 var laserCd = 0;
 var shakeT = 0;
@@ -442,6 +466,8 @@ function buildLevel(n){
   G.bombT = 0;
   setupWall(n);
   resetBall();
+  var meta = LEVEL_META[n] || {};
+  G.banner = { title: '第 ' + (n + 1) + ' 关', sub: meta.name || '', t: 0 };
   syncHud();
 }
 
@@ -470,7 +496,7 @@ function setupWall(n){
 function resetWall(){ wallT = 0; dropOff = 0; }
 
 function resetBall(){
-  balls = [{ x: paddle.x, y: paddle.y - 8, r: 7, dx: 0, dy: -1, stuck: true, off: 0 }];
+  balls = [{ x: paddle.x, y: paddle.y - 8, r: 7, dx: 0, dy: -1, stuck: true, off: 0, trail: [] }];
   bullets = [];
 }
 
@@ -656,11 +682,11 @@ function maybeDrop(br){
 
 function spawnParticles(br){
   var col = COLORS[br.type] ? COLORS[br.type][1] : '#999';
-  for (var i = 0; i < 6; i++){
+  for (var i = 0; i < 10; i++){
     particles.push({
       x: br.x + br.w/2, y: br.y + br.h/2,
-      vx: rnd(-3, 3), vy: rnd(-3.6, -0.6),
-      life: 1, size: rnd(2, 4.5), color: col
+      vx: rnd(-3.4, 3.4), vy: rnd(-4.2, -0.4),
+      life: rnd(0.7, 1.1), size: rnd(1.8, 4.5), color: col
     });
   }
 }
@@ -685,7 +711,7 @@ function applyPower(def){
           if (add.length >= 4) break;
           var a = Math.atan2(b.dy, b.dx) + k * 0.42;
           add.push({ x: b.x, y: b.y, r: 7, dx: Math.cos(a), dy: Math.sin(a),
-                     stuck: false, off: 0 });
+                     stuck: false, off: 0, trail: [] });
         }
       }
       if (!add.length){
@@ -743,6 +769,7 @@ function floatMsg(text, color){
 /* ---------- 主更新 ---------- */
 function update(dt){
   var dtf = dt / 16.667;
+  if (G.banner) G.banner.t += dt;
   paddle.flash = Math.max(0, paddle.flash - dtf * 0.12);
   shakeT = Math.max(0, shakeT - dtf);
 
@@ -809,6 +836,9 @@ function update(dt){
         var len2 = Math.hypot(b.dx, b.dy);
         b.dx /= len2; b.dy /= len2;
       }
+      // 拖尾
+      b.trail.push({ x: b.x, y: b.y });
+      if (b.trail.length > 9) b.trail.shift();
     }
     if (b.y - b.r > H + 20){ balls.splice(i, 1); }
   }
@@ -886,7 +916,9 @@ function update(dt){
   if (alive === 0){
     G.state = 'clear';
     G.clearTimer = 900;
-    showOverlay('第 ' + (G.level + 1) + ' 关完成', '得分 ' + G.score + '　剩余生命 ' + G.lives, '进入下一关');
+    var clName = (LEVEL_META[G.level] || {}).name;
+    showOverlay('第 ' + (G.level + 1) + ' 关完成' + (clName ? ' · ' + clName : ''),
+                '得分 ' + G.score + '　剩余生命 ' + G.lives, '进入下一关');
     beep(660, 0.12, 'triangle', 0.06);
     setTimeout(function(){ beep(880, 0.14, 'triangle', 0.06); }, 130);
     updateBuffs();
@@ -936,10 +968,26 @@ function draw(){
   ctx.fillStyle = g;
   ctx.fillRect(-20, -20, W + 40, H + 40);
 
-  // 顶部危险线
-  ctx.strokeStyle = dark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
+  // 星点背景（深色模式下若隐若现）
+  if (dark){
+    var stNow = performance.now();
+    ctx.fillStyle = '#9db4d8';
+    for (var s2 = 0; s2 < stars.length; s2++){
+      var star = stars[s2];
+      ctx.globalAlpha = 0.10 + 0.12 * Math.sin(stNow / 900 + star.ph);
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // 顶部危险线（虚线，更轻）
+  ctx.setLineDash([2, 6]);
+  ctx.strokeStyle = dark ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.09)';
   ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, TOP_Y - 14); ctx.lineTo(W, TOP_Y - 14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(12, TOP_Y - 14); ctx.lineTo(W - 12, TOP_Y - 14); ctx.stroke();
+  ctx.setLineDash([]);
 
   // 铁笼关入口提示：缺口下方一个呼吸的向上箭头
   if (levelHint){
@@ -968,36 +1016,54 @@ function draw(){
     if (br.flash > 0){
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = '#ffffff';
-      rr(br.x, br.y, br.w, br.h, 2.5); ctx.fill();
+      rr(br.x, br.y, br.w, br.h, 5); ctx.fill();
       ctx.globalAlpha = 1;
       ctx.fillStyle = br.grad;
     }
-    rr(br.x, br.y, br.w, br.h, 2.5);
+    rr(br.x, br.y, br.w, br.h, 5);
     ctx.fill();
 
-    // 高光
-    ctx.fillStyle = 'rgba(255,255,255,.28)';
-    rr(br.x + 1.5, br.y + 1.2, br.w - 3, br.h * 0.3, 1.5);
+    // 整面光泽渐变：顶部高光 + 底部阴影一次成形
+    var hl = ctx.createLinearGradient(0, br.y, 0, br.y + br.h);
+    hl.addColorStop(0, 'rgba(255,255,255,.34)');
+    hl.addColorStop(0.45, 'rgba(255,255,255,.06)');
+    hl.addColorStop(1, 'rgba(0,0,0,.16)');
+    ctx.fillStyle = hl;
+    rr(br.x, br.y, br.w, br.h, 5);
     ctx.fill();
 
-    // 硬砖血量
+    // 硬砖血量：右上角小圆点
     if (br.type === 'H' || br.type === 'S'){
       ctx.fillStyle = 'rgba(0,0,0,.45)';
-      ctx.font = 'bold 10px -apple-system, sans-serif';
-      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-      ctx.fillText(String(br.hp), br.x + 2, br.y + 1.5);
+      for (var di = 0; di < br.hp; di++){
+        ctx.beginPath();
+        ctx.arc(br.x + br.w - 6 - di * 6.5, br.y + 5.5, 1.9, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     if (br.type === 'X'){
-      ctx.strokeStyle = 'rgba(255,255,255,.22)';
-      ctx.lineWidth = 1;
-      rr(br.x + 2, br.y + 2, br.w - 4, br.h - 4, 1.5);
-      ctx.stroke();
+      // 钢板：斜纹 + 两端铆钉
+      ctx.save();
+      rr(br.x, br.y, br.w, br.h, 5);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(255,255,255,.10)';
+      ctx.lineWidth = 2;
+      for (var xs = -br.h; xs < br.w + br.h; xs += 7){
+        ctx.beginPath();
+        ctx.moveTo(br.x + xs, br.y + br.h);
+        ctx.lineTo(br.x + xs + br.h, br.y);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,255,255,.30)';
+      ctx.beginPath(); ctx.arc(br.x + 5, br.y + br.h/2, 1.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(br.x + br.w - 5, br.y + br.h/2, 1.6, 0, Math.PI * 2); ctx.fill();
     }
 
     // 爆炸砖：橙色警戒斜纹，一眼认出会炸
     if (br.type === 'B'){
       ctx.save();
-      rr(br.x, br.y, br.w, br.h, 2.5);
+      rr(br.x, br.y, br.w, br.h, 5);
       ctx.clip();
       ctx.strokeStyle = 'rgba(46,12,0,.5)';
       ctx.lineWidth = 4.5;
@@ -1042,7 +1108,7 @@ function draw(){
     ctx.shadowColor = col;
     ctx.shadowBlur = 10;
     ctx.fillStyle = col;
-    rr(-dp.w/2, -dp.h/2, dp.w, dp.h, 9);
+    rr(-dp.w/2, -dp.h/2, dp.w, dp.h, dp.h/2);
     ctx.fill();
     ctx.restore();
     ctx.fillStyle = 'rgba(255,255,255,.32)';
@@ -1164,6 +1230,19 @@ function draw(){
     var ballCol = '#ffffff', glow = dark ? '#7ab8ff' : '#007aff';
     if (G.pierceT > 0){ ballCol = '#e9c6ff'; glow = '#bf5af2'; }
     else if (G.bombT > 0){ ballCol = '#ffd9bd'; glow = '#ff6b22'; }
+    // 拖尾
+    if (b.trail && b.trail.length > 1){
+      for (var ti = 0; ti < b.trail.length; ti++){
+        var tp = b.trail[ti];
+        var tf = (ti + 1) / b.trail.length;
+        ctx.globalAlpha = tf * 0.22;
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(tp.x, tp.y, b.r * (0.3 + 0.55 * tf), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
     ctx.save();
     ctx.shadowColor = glow;
     ctx.shadowBlur = 14;
@@ -1192,11 +1271,35 @@ function draw(){
   // 待发射提示
   var ready = balls.length === 1 && balls[0].stuck;
   if (ready && G.state === 'play'){
-    var dark2 = dark;
-    ctx.fillStyle = dark2 ? 'rgba(255,255,255,.55)' : 'rgba(0,0,0,.45)';
+    ctx.globalAlpha = 0.55 + 0.3 * Math.sin(performance.now() / 420);
+    ctx.fillStyle = dark ? '#ffffff' : '#1c1c1e';
     ctx.font = '13px -apple-system, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('按住拖动定位 · 松手发球', W/2, paddle.y - 46);
+    ctx.globalAlpha = 1;
+  }
+  // 关卡横幅：开局 1.4 秒淡入淡出
+  if (G.banner && G.banner.t < 1400 && G.state === 'play'){
+    var bt = G.banner.t;
+    var ba = bt < 200 ? bt / 200 : (bt > 1100 ? Math.max(0, (1400 - bt) / 300) : 1);
+    ctx.save();
+    ctx.globalAlpha = ba * 0.94;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = dark ? 'rgba(122,184,255,.6)' : 'rgba(0,90,200,.35)';
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = dark ? '#ffffff' : '#14304f';
+    ctx.font = '800 34px -apple-system, sans-serif';
+    ctx.fillText(G.banner.title, W/2, H * 0.5);
+    ctx.shadowBlur = 0;
+    if (G.banner.sub){
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.65)' : 'rgba(20,48,79,.6)';
+      ctx.font = '600 15px -apple-system, sans-serif';
+      ctx.fillText(G.banner.sub, W/2, H * 0.5 + 32);
+    }
+    ctx.fillStyle = dark ? 'rgba(122,184,255,.8)' : 'rgba(0,90,200,.5)';
+    rr(W/2 - 24, H * 0.5 + 48, 48, 3, 1.5);
+    ctx.fill();
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -1204,6 +1307,10 @@ function draw(){
 /* ---------- HUD ---------- */
 function syncHud(){
   elLevel.textContent = String(G.level + 1);
+  var bars = elProg.children;
+  for (var pj = 0; pj < bars.length; pj++){
+    bars[pj].className = pj < G.level ? 'done' : (pj === G.level ? 'cur' : '');
+  }
   elScore.textContent = String(G.score);
   var s = '';
   for (var i = 0; i < Math.min(G.lives, 5); i++) s += '♥';
@@ -1383,6 +1490,9 @@ function updateBuffsThrottle(t){
 }
 
 /* ---------- 启动 ---------- */
+var progHtml = '';
+for (var pi = 0; pi < LEVELS.length; pi++) progHtml += '<i></i>';
+elProg.innerHTML = progHtml;
 buildLevel(0);
 G.state = 'menu';
 showOverlay('打砖块 · 闯关',
