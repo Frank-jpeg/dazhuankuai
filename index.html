@@ -645,7 +645,13 @@ function resetBall(){
   bullets = [];
 }
 
+var KID_SPEED_MUL = 0.42;   // 小孩模式球速倍率（普通模式 1.0）
+var KID_LEVEL_GROW = 0.02;  // 小孩模式关卡提速更缓（普通 0.045）
+
 function speedNow(){
+  if (G.mode === 'kid'){
+    return BASE_SPEED * KID_SPEED_MUL * (1 + G.level * KID_LEVEL_GROW) * G.itemMul;
+  }
   return BASE_SPEED * (1 + G.level * 0.045) * G.itemMul;
 }
 
