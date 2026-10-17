@@ -448,6 +448,7 @@ var G = {
   pierceT: 0,
   bombT: 0,
   clearTimer: 0,
+  noHit: 0,
   best: 0,
   banner: null
 };
@@ -644,6 +645,7 @@ function launch(){
       b.stuck = false;
       var a = -Math.PI/2 + b.off / (paddle.w/2) * 0.6;
       b.dx = Math.cos(a); b.dy = Math.sin(a);
+      if (Math.abs(b.dx) < 1e-6) b.dx = 0;   // 挡板正中：正上方直发
       any = true;
     }
   }
@@ -756,6 +758,7 @@ function hitBrick(br, dmg, noBomb){
     beep(180, 0.05, 'square', 0.03);
     return;
   }
+  G.noHit = 0;
   br.hp -= dmg;
   br.flash = 1;
   if (G.bombT > 0 && !noBomb) bombAt(br);
@@ -809,6 +812,15 @@ function maybeDrop(br){
   drops.push({ x: br.x + br.w/2, y: br.y + br.h/2,
                w: 18 + 13 * br.powerDef.name.length, h: 28,
                def: br.powerDef, rot: 0 });
+}
+
+// 连续 15 秒没打中砖：掉一个救急道具（激光 / 三球 / 炸弹 三选一）
+function rescueDrop(){
+  var pool = [POWERS[3], POWERS[1], POWERS[4]];
+  var def = pool[(Math.random() * pool.length) | 0];
+  drops.push({ x: 40 + Math.random() * (W - 80), y: 96,
+               w: 18 + 13 * def.name.length, h: 28,
+               def: def, rot: 0 });
 }
 
 function spawnParticles(br){
@@ -960,10 +972,10 @@ function update(dt){
         var len = Math.hypot(b.dx, b.dy);
         b.dx /= len; b.dy /= len;
       }
-      // 防止垂直卡死：铁笼里的球碰不到挡板，一旦变成纯上下运动就永远
-      // 只在自己那一列来回弹，打不到其他列的砖（会卡死通关）
-      if (Math.abs(b.dx) < 0.22){
-        b.dx = b.dx > 1e-6 ? 0.22 : (b.dx < -1e-6 ? -0.22 : (Math.random() < 0.5 ? 0.22 : -0.22));
+      // 防止垂直卡死：横向速度极小会只在一列来回弹打不到其他砖
+      //（纯竖直例外：开局正上方直发，碰砖或挡板后自然恢复斜向）
+      if (Math.abs(b.dx) > 1e-6 && Math.abs(b.dx) < 0.22){
+        b.dx = b.dx > 0 ? 0.22 : -0.22;
         var len2 = Math.hypot(b.dx, b.dy);
         b.dx /= len2; b.dy /= len2;
       }
@@ -973,6 +985,12 @@ function update(dt){
     }
     if (b.y - b.r > H + 20){ balls.splice(i, 1); }
   }
+
+  // 连续 15 秒没打中砖：掉一个救急道具，防止最后几块一直打不到
+  var noHitFly = false;
+  for (var nhi = 0; nhi < balls.length; nhi++) if (!balls[nhi].stuck) noHitFly = true;
+  G.noHit = noHitFly ? G.noHit + dtf : 0;
+  if (G.noHit >= 900){ G.noHit = 0; rescueDrop(); }
 
   // 掉球
   if (!balls.length){
