@@ -857,7 +857,7 @@ function spawnParticles(br){
 function applyPower(def){
   switch(def.id){
     case 'expand':
-      paddle.w = Math.min(paddle.w + 34, Math.max(190, paddle.baseW + 44));
+      paddle.w = Math.min(paddle.w + 34, Math.min(W - 24, Math.max(190, paddle.baseW + 44)));
       floatMsg('挡板加长', def.color);
       break;
     case 'shrink':
@@ -1548,7 +1548,7 @@ function hideOverlay(){ elOverlay.classList.remove('show'); }
 /* ---------- 流程 ---------- */
 function startGame(mode){
   G.mode = mode || G.mode || 'normal';
-  paddle.baseW = (G.mode === 'kid') ? 170 : 96;
+  paddle.baseW = (G.mode === 'kid') ? Math.round(W * 0.8) : 96;   // 小孩模式挡板占底部 80%
   paddle.w = paddle.baseW;
   G.state = 'play';
   G.level = 0;
