@@ -1602,15 +1602,33 @@ cvs.addEventListener('pointermove', function(e){
   if (G.state === 'menu') return;
   paddle.x = clamp(toLocalX(e.clientX), paddle.w/2, W - paddle.w/2);
 });
+var tappedBrick = false;
 cvs.addEventListener('pointerdown', function(e){
   initAudio();
-  paddle.x = clamp(toLocalX(e.clientX), paddle.w/2, W - paddle.w/2);
+  var r = cvs.getBoundingClientRect();
+  var lx = (e.clientX - r.left) / r.width * W;
+  var ly = (e.clientY - r.top) / r.height * H;
+  tappedBrick = false;
+  // 小孩模式：手指点砖块 = 球打中它
+  if (G.mode === 'kid' && G.state === 'play'){
+    for (var i = 0; i < bricks.length; i++){
+      var br = bricks[i];
+      if (br.hp > 0 && lx >= br.x && lx <= br.x + br.w && ly >= br.y && ly <= br.y + br.h){
+        hitBrick(br, 1);
+        tappedBrick = true;
+        break;
+      }
+    }
+    if (tappedBrick) return;
+  }
+  paddle.x = clamp(lx, paddle.w/2, W - paddle.w/2);
   // 抓住指针，手指滑出画布也能继续拖动
   if (cvs.setPointerCapture) { try { cvs.setPointerCapture(e.pointerId); } catch (err) {} }
 });
 // 松手才发球：按下 / 拖动只用来把挡板挪到想要的位置
 cvs.addEventListener('pointerup', function(e){
-  if (G.state === 'play') launch();
+  if (G.state === 'play' && !tappedBrick) launch();
+  tappedBrick = false;
 });
 
 window.addEventListener('keydown', function(e){
