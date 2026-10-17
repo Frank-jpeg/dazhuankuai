@@ -98,6 +98,7 @@
     <div class="item"><span class="k">分数</span><span class="v" id="hScore">0</span></div>
     <div class="item"><span class="k">生命</span><span class="v hearts" id="hLives">♥♥♥</span></div>
     <div class="spacer"></div>
+    <button class="hbtn" id="btnSkip" title="跳关（测试用）">⏭</button>
     <button class="hbtn" id="btnSound" title="音效">🔊</button>
     <button class="hbtn" id="btnTheme" title="主题">🌙</button>
   </div>
@@ -148,6 +149,7 @@ var elOvTitle = document.getElementById('ovTitle');
 var elOvSub = document.getElementById('ovSub');
 var elOvBtn = document.getElementById('ovBtn');
 var elSound = document.getElementById('btnSound');
+var elSkip = document.getElementById('btnSkip');
 var elTheme = document.getElementById('btnTheme');
 
 var BASE_SPEED = 6.0;
@@ -716,7 +718,7 @@ function applyPower(def){
       }
       if (!add.length){
         balls[0].stuck = false;
-        balls[0].dx = 0.3; balls[0].dy = -0.95;
+        balls[0].dx = Math.random() < 0.5 ? 0.3 : -0.3; balls[0].dy = -0.95;
       }
       balls = balls.concat(add);
       floatMsg('三球齐发', def.color);
@@ -832,7 +834,7 @@ function update(dt){
       // 防止垂直卡死：铁笼里的球碰不到挡板，一旦变成纯上下运动就永远
       // 只在自己那一列来回弹，打不到其他列的砖（会卡死通关）
       if (Math.abs(b.dx) < 0.22){
-        b.dx = b.dx >= 0 ? 0.22 : -0.22;
+        b.dx = b.dx > 1e-6 ? 0.22 : (b.dx < -1e-6 ? -0.22 : (Math.random() < 0.5 ? 0.22 : -0.22));
         var len2 = Math.hypot(b.dx, b.dy);
         b.dx /= len2; b.dy /= len2;
       }
@@ -1470,6 +1472,10 @@ elTheme.addEventListener('click', function(){
 elSound.addEventListener('click', function(){
   muted = !muted;
   elSound.textContent = muted ? '🔇' : '🔊';
+});
+elSkip.addEventListener('click', function(){
+  initAudio();
+  if (G.state === 'play' || G.state === 'paused') nextLevel();
 });
 
 /* ---------- 主循环 ---------- */
