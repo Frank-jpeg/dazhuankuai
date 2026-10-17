@@ -292,17 +292,21 @@ var LEVELS = [
     "HHH..HHHHHH..HHH",
     "HHH..HHHHHH..HHH",
     "HHH..HHHHHH..HHH" ],
-  // 8 角落缝隙笼·深坑窄缝
-  [ "XXXXXXXXXXX",
-    "X111111111X",
-    "X111111111X",
-    "X222222222X",
-    "X222222222X",
-    "X333333333X",
-    "X333333333X",
-    "X.........X",
-    "X.........X",
-    "X.XXXXXXXXX" ],
+  // 8 缝隙关（参考视频：白砖田夹两条一列窄缝，顶有钢盖，钻进去很难出来）
+  [ "XXXXXXXXXXXXXXXX",
+    "HHHH.........HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH",
+    "HHHH.H11111H.HHH" ],
   // 9 钻石堡垒（硬砖做骨架）
   [ ".......HH.......",
     "......H22H......",
@@ -382,18 +386,23 @@ var LEVELS = [
     "3333333333333333",
     "B44B44B44B44B44B",
     "5555555555555555" ],
-  // 14 终极缝隙笼
-  [ "XXXXXXXXXXX",
-    "X111111111X",
-    "X2B2B2B2B2X",
-    "X333333333X",
-    "X4B4B4B4B4X",
-    "X555555555X",
-    "X1B1B1B1B1X",
-    "X222222222X",
-    "X.........X",
-    "X.........X",
-    "X.XXXXXXXXX" ]
+  // 14 终极缝隙关（三条窄缝，双层钢盖，红砖田里藏爆炸砖）
+  [ "XXXXXXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXX",
+    "HHHH.........HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.HB1.1BH.HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.HB1.1BH.HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.H11.11H.HHH",
+    "HHHH.H11.11H.HHH" ]
 ];
 
 var LEVEL_META = [
@@ -404,13 +413,13 @@ var LEVEL_META = [
   { name:'心形' },                               // 5
   { name:'摆动砖墙', move:'swing', amp:55 },       // 6 左右滑动
   { name:'蜂巢迷宫', gapCols:[[3,2],[11,2]] },     // 7 细砖迷宫，两条缝钻进去
-  { name:'缝隙笼', gapCols:[[1,1]] },             // 8 角落深坑，一缝进、难出
+  { name:'缝隙关', gapCols:[[4,1],[12,1]] },        // 8 白砖田两条一列窄缝，顶有钢盖
   { name:'钻石堡垒' },                             // 9
   { name:'菱形波纹' },                             // 10
   { name:'沙漏' },                               // 11
   { name:'下压砖墙', move:'descend', dropSpeed:0.16, maxDrop:260 },  // 12
   { name:'爆炸阵' },                              // 13
-  { name:'终极缝隙笼', gapCols:[[1,1]] }           // 14 左下角单缝 + 内部爆炸砖
+  { name:'终极缝隙关', gapCols:[[4,1],[8,1],[12,1]] }  // 14 三条窄缝 + 双层钢盖 + 爆炸砖
 ];
 
 /* ---------- 道具 ---------- */
