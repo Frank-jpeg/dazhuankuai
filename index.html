@@ -75,6 +75,16 @@
   }
   #ovBtn:hover{transform:translateY(-1px)}
   #ovBtn:active{transform:scale(.95)}
+  #ovBtn2{
+    margin-top:8px; padding:11px 30px; border-radius:999px; cursor:pointer;
+    background:rgba(255,255,255,.10); color:#fff;
+    border:1px solid rgba(255,255,255,.38);
+    font-size:14px; font-weight:600; letter-spacing:1px;
+    transition:background .12s, transform .12s;
+  }
+  #ovBtn2:hover{background:rgba(255,255,255,.20)}
+  #ovBtn2:active{transform:scale(.95)}
+  #ovBtn2.hide{display:none}
   #buffs{
     width:var(--w); height:26px; display:flex; gap:6px; align-items:center;
     justify-content:center; overflow:hidden;
@@ -110,6 +120,7 @@
       <div id="ovRule"></div>
       <div id="ovSub"></div>
       <button id="ovBtn"></button>
+      <button id="ovBtn2" class="hide">🧸 小孩模式</button>
     </div>
   </div>
   <div id="buffs"></div>
@@ -148,6 +159,7 @@ var elOverlay = document.getElementById('overlay');
 var elOvTitle = document.getElementById('ovTitle');
 var elOvSub = document.getElementById('ovSub');
 var elOvBtn = document.getElementById('ovBtn');
+var elOvBtn2 = document.getElementById('ovBtn2');
 var elSound = document.getElementById('btnSound');
 var elSkip = document.getElementById('btnSkip');
 var elTheme = document.getElementById('btnTheme');
@@ -441,6 +453,7 @@ var POWER_TOTAL = POWERS.reduce(function(s,p){ return s + p.w; }, 0);
 /* ---------- 状态 ---------- */
 var G = {
   state: 'menu',      // menu | play | paused | clear | over | win
+  mode: 'normal',     // normal | kid（小孩模式：超宽挡板 + 无限生命）
   level: 0,
   score: 0,
   lives: 3,
@@ -838,7 +851,7 @@ function spawnParticles(br){
 function applyPower(def){
   switch(def.id){
     case 'expand':
-      paddle.w = Math.min(paddle.w + 34, 190);
+      paddle.w = Math.min(paddle.w + 34, Math.max(190, paddle.baseW + 44));
       floatMsg('挡板加长', def.color);
       break;
     case 'shrink':
@@ -1067,7 +1080,7 @@ function update(dt){
     G.clearTimer = 900;
     var clName = (LEVEL_META[G.level] || {}).name;
     showOverlay('第 ' + (G.level + 1) + ' 关完成' + (clName ? ' · ' + clName : ''),
-                '得分 ' + G.score + '　剩余生命 ' + G.lives, '进入下一关');
+                '得分 ' + G.score + '　剩余生命 ' + (G.mode === 'kid' ? '∞' : G.lives), '进入下一关');
     beep(660, 0.12, 'triangle', 0.06);
     setTimeout(function(){ beep(880, 0.14, 'triangle', 0.06); }, 130);
     updateBuffs();
@@ -1075,6 +1088,25 @@ function update(dt){
 }
 
 function loseLife(){
+  // 小孩模式：不扣命、不结束，直接重发球
+  if (G.mode === 'kid'){
+    G.itemMul = 1;
+    paddle.w = paddle.baseW;
+    paddle.sticky = 0;
+    paddle.laser = 0;
+    paddle.shield = 0;
+    paddle.twin = 0;
+    G.pierceT = 0;
+    G.bombT = 0;
+    drops = []; bullets = [];
+    resetWall();
+    shakeT = 12;
+    beep(150, 0.2, 'sine', 0.05);
+    syncHud();
+    updateBuffs();
+    resetBall();
+    return;
+  }
   G.lives--;
   G.itemMul = 1;
   paddle.w = paddle.baseW;
@@ -1468,8 +1500,12 @@ function syncHud(){
   }
   elScore.textContent = String(G.score);
   var s = '';
-  for (var i = 0; i < Math.min(G.lives, 5); i++) s += '♥';
-  if (G.lives > 5) s += ' ×' + G.lives;
+  if (G.mode === 'kid'){
+    s = '∞';
+  } else {
+    for (var i = 0; i < Math.min(G.lives, 5); i++) s += '♥';
+    if (G.lives > 5) s += ' ×' + G.lives;
+  }
   elLives.textContent = s || '—';
 }
 
@@ -1489,20 +1525,29 @@ function updateBuffs(){
 }
 
 /* ---------- 覆盖层 ---------- */
-function showOverlay(title, sub, btn){
+function showOverlay(title, sub, btn, btn2){
   elOvTitle.textContent = title;
   elOvSub.innerHTML = sub;
   elOvBtn.textContent = btn;
+  if (btn2){
+    elOvBtn2.textContent = btn2;
+    elOvBtn2.classList.remove('hide');
+  } else {
+    elOvBtn2.classList.add('hide');
+  }
   elOverlay.classList.add('show');
 }
 function hideOverlay(){ elOverlay.classList.remove('show'); }
 
 /* ---------- 流程 ---------- */
-function startGame(){
+function startGame(mode){
+  G.mode = mode || G.mode || 'normal';
+  paddle.baseW = (G.mode === 'kid') ? 170 : 96;
+  paddle.w = paddle.baseW;
   G.state = 'play';
   G.level = 0;
   G.score = 0;
-  G.lives = 3;
+  G.lives = (G.mode === 'kid') ? Infinity : 3;
   G.combo = 0;
   hideOverlay();
   buildLevel(0);
@@ -1530,6 +1575,11 @@ elOvBtn.addEventListener('click', function(e){
   if (G.state === 'menu' || G.state === 'over' || G.state === 'win') startGame();
   else if (G.state === 'clear') nextLevel();
   else if (G.state === 'paused') { G.state = 'play'; hideOverlay(); }
+});
+elOvBtn2.addEventListener('click', function(e){
+  e.stopPropagation();
+  initAudio();
+  if (G.state === 'menu' || G.state === 'over' || G.state === 'win') startGame('kid');
 });
 
 document.getElementById('stage').addEventListener('click', function(){
@@ -1656,7 +1706,7 @@ buildLevel(0);
 G.state = 'menu';
 showOverlay('打砖块 · 闯关',
   '十四关 · 十一种道具<br>发光的砖块会掉道具，优先打<br>后期关卡各有花样：缝隙笼 / 摆动 / 下压 / 爆炸砖<br>鼠标拖动 / 触屏 / ←→ 移动挡板<br>按住拖动定位，松手发球 · 空格亦可发射 · P 暂停<br>最高分 ' + G.best,
-  '开始游戏');
+  '开始游戏', '🧸 小孩模式');
 requestAnimationFrame(loop);
 
 })();
