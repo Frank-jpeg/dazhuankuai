@@ -26,3 +26,7 @@
 ## 说明
 
 `index.html` 即游戏本体，由主项目 `breakout.html` 同步而来。
+
+## 开发
+
+- 玩法设计稿：[`docs/roguelike-mode.md`](docs/roguelike-mode.md)（肉鸽闯关模式，设计完成，未实现）
