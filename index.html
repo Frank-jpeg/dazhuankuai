@@ -857,7 +857,7 @@ function spawnParticles(br){
 function applyPower(def){
   switch(def.id){
     case 'expand':
-      paddle.w = Math.min(paddle.w + 34, Math.min(W - 24, Math.max(190, paddle.baseW + 44)));
+      paddle.w = Math.min(paddle.w + 34, Math.max(190, paddle.baseW + 44));
       floatMsg('挡板加长', def.color);
       break;
     case 'shrink':
